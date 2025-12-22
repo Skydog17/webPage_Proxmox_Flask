@@ -26,5 +26,4 @@ def request_vm():
     new_req = VMRequest(user_id=current_user.id, vm_type=vm_type)
     db.session.add(new_req)
     db.session.commit()
-    flash("Richiesta inviata")
     return redirect(url_for("default.dashboard"))

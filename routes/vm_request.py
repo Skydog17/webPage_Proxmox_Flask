@@ -77,3 +77,21 @@ def approve(req_id):
     db.session.commit()
     flash(f"Container {vm_name} creato")
     return redirect(url_for("default.dashboard"))
+
+@app.route("/reject/<int:req_id>")
+@login_required
+def reject(req_id):
+    if current_user.role != "admin":
+        flash("Non hai i permessi")
+        return redirect(url_for("default.dashboard"))
+
+    req = VMRequest.query.get(req_id)
+    if not req or req.status != "pending":
+        flash("Richiesta non valida")
+        return redirect(url_for("default.dashboard"))
+
+    # Aggiorna lo stato della richiesta
+    req.status = "rejected"
+    db.session.commit()
+
+    return redirect(url_for("default.dashboard"))

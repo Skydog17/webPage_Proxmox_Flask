@@ -18,9 +18,9 @@
                 <div class="mb-3">
                     <label for="vm_type" class="form-label">Tipo VM</label>
                     <select name="vm_type" class="form-select">
-                        <option value="bronze">Bronze</option>
-                        <option value="silver">Silver</option>
-                        <option value="gold">Gold</option>
+                        <option value="bronze">Bronze - 1 core - 2048MB RAM - 10GB Disk</option>
+                        <option value="silver">Silver - 2 core - 4096MB RAM - 20GB Disk</option>
+                        <option value="gold">Gold - 4 core - 8192MB RAM - 40GB Disk</option>
                     </select>
                 </div>
                 <button type="submit" class="btn btn-primary">Invia richiesta</button>
@@ -38,6 +38,8 @@
                 <th>Stato</th>
                 <th>Hostname</th>
                 <th>IP</th>
+		<th>User</th>
+                <th>Password</th>
                 {% if user.role == 'admin' %}
                 <th>Azioni</th>
                 {% endif %}
@@ -51,11 +53,13 @@
                 <td>{{ r.status }}</td>
                 <td>{% if r.vm_instance %}{{ r.vm_instance.hostname }}{% else %}-{% endif %}</td>
                 <td>{% if r.vm_instance %}{{ r.vm_instance.ip_address }}{% else %}-{% endif %}</td>
-                {% if user.role == 'admin' %}
+                <td>{% if r.vm_instance %}{{ r.vm_instance.vm_user }}{% else %}-{% endif %}</td>
+                <td>{% if r.vm_instance %}{{ r.vm_instance.vm_password }}{% else %}-{% endif %}</td>
+		{% if user.role == 'admin' %}
                 <td>
                     {% if r.status == 'pending' %}
                         <a href="{{ url_for('vmReq.approve', req_id=r.id) }}" class="btn btn-success btn-sm">Approva</a>
-                        <a href="#" class="btn btn-danger btn-sm">Rifiuta</a>
+                        <a href="{{ url_for('vmReq.reject', req_id=r.id) }}" class="btn btn-danger btn-sm">Rifiuta</a>
                     {% else %}
                         -
                     {% endif %}

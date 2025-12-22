@@ -20,9 +20,14 @@
         <button class="btn btn-primary w-100">Login</button>
     </form>
 
-    {% if error %}
-    <div class="alert alert-danger mt-3">{{ error }}</div>
-    {% endif %}
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-danger mt-3">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
 </div>
 
 </body>
