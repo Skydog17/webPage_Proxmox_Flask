@@ -20,11 +20,11 @@ def dashboard():
 def request_vm():
     if current_user.role != "user":
         flash("Solo gli utenti possono richiedere VM")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("default.dashboard"))
     
     vm_type = request.form['vm_type']
     new_req = VMRequest(user_id=current_user.id, vm_type=vm_type)
     db.session.add(new_req)
     db.session.commit()
     flash("Richiesta inviata")
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("default.dashboard"))

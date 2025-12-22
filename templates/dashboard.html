@@ -7,14 +7,14 @@
 </head>
 <body class="p-3">
     <h2>Benvenuto, {{ user.username }} ({{ user.role }})</h2>
-    <a href="{{ url_for('logout') }}" class="btn btn-secondary mb-3">Logout</a>
+    <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary mb-3">Logout</a>
 
     {% if user.role == 'user' %}
     <!-- Form richiesta nuova VM -->
     <div class="card mb-3">
         <div class="card-header">Richiedi nuova VM</div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('request_vm') }}">
+            <form method="POST" action="{{ url_for('default.request_vm') }}">
                 <div class="mb-3">
                     <label for="vm_type" class="form-label">Tipo VM</label>
                     <select name="vm_type" class="form-select">
@@ -54,7 +54,7 @@
                 {% if user.role == 'admin' %}
                 <td>
                     {% if r.status == 'pending' %}
-                        <a href="{{ url_for('approve', req_id=r.id) }}" class="btn btn-success btn-sm">Approva</a>
+                        <a href="{{ url_for('vmReq.approve', req_id=r.id) }}" class="btn btn-success btn-sm">Approva</a>
                         <a href="#" class="btn btn-danger btn-sm">Rifiuta</a>
                     {% else %}
                         -
