@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-danger px-3">
+    <span class="navbar-brand">Admin Panel</span>
+    <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+</nav>
+
+<div class="container mt-4">
+    <h3>Richieste VM in attesa</h3>
+
+    <table class="table table-bordered">
+        <tr>
+            <th>ID</th>
+            <th>Utente</th>
+            <th>Tipo</th>
+            <th>Azioni</th>
+        </tr>
+
+        {% for r in requests %}
+        <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.username }}</td>
+            <td>{{ r.vm_type }}</td>
+            <td>
+                <a href="/approve/{{ r.id }}" class="btn btn-success btn-sm">Approva</a>
+                <a href="/reject/{{ r.id }}" class="btn btn-danger btn-sm">Rifiuta</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+</body>
+</html>

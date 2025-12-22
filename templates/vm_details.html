@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Dettagli VM</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+</head>
+<body class="container mt-5">
+
+<h3>Dettagli macchina virtuale</h3>
+
+<ul class="list-group">
+    <li class="list-group-item"><strong>Hostname:</strong> {{ vm.hostname }}</li>
+    <li class="list-group-item"><strong>IP:</strong> {{ vm.ip_address }}</li>
+    <li class="list-group-item"><strong>User:</strong> {{ vm.vm_user }}</li>
+    <li class="list-group-item"><strong>Password:</strong> {{ vm.vm_password }}</li>
+</ul>
+
+<a href="/dashboard" class="btn btn-secondary mt-3">Indietro</a>
+
+</body>
+</html>

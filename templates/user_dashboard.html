@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard Utente</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark px-3">
+    <span class="navbar-brand">Portale VM</span>
+    <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+</nav>
+
+<div class="container mt-4">
+    <h3>Richiedi nuova VM</h3>
+
+    <form method="POST" action="/request-vm" class="card p-3 shadow-sm">
+        <div class="mb-3">
+            <label class="form-label">Tipo di macchina</label>
+            <select class="form-select" name="vm_type" required>
+                <option value="bronze">Bronze (1 CPU / 1GB RAM)</option>
+                <option value="silver">Silver (2 CPU / 2GB RAM)</option>
+                <option value="gold">Gold (4 CPU / 4GB RAM)</option>
+            </select>
+        </div>
+        <button class="btn btn-success">Invia richiesta</button>
+    </form>
+
+    <hr>
+
+    <h4>Le tue richieste</h4>
+    <table class="table table-striped">
+        <tr>
+            <th>ID</th>
+            <th>Tipo</th>
+            <th>Stato</th>
+            <th></th>
+        </tr>
+        {% for r in requests %}
+        <tr>
+            <td>{{ r.id }}</td>
+            <td>{{ r.vm_type }}</td>
+            <td>{{ r.status }}</td>
+            <td>
+                {% if r.status == 'created' %}
+                <a href="/vm/{{ r.id }}" class="btn btn-sm btn-primary">Dettagli</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+</body>
+</html>
