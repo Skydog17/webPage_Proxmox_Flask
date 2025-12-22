@@ -14,7 +14,7 @@ def login():
         user = User.query.filter_by(username=username, password=password).first()
         if user:
             login_user(user)
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("default.dashboard"))
         flash("Credenziali errate")
     return render_template("login.html")
 

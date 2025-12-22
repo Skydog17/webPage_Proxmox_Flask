@@ -12,12 +12,12 @@ app = Blueprint('vmReq', __name__)
 def approve(req_id):
     if current_user.role != "admin":
         flash("Non hai i permessi")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("default.dashboard"))
 
     req = VMRequest.query.get(req_id)
     if not req or req.status != "pending":
         flash("Richiesta non valida")
-        return redirect(url_for("dashboard"))
+        return redirect(url_for("default.dashboard"))
 
     # ===== Connessione a Proxmox con API Token =====
     proxmox = ProxmoxAPI(
@@ -73,4 +73,4 @@ def approve(req_id):
     req.status = "created"
     db.session.commit()
     flash(f"Container {vm_name} creato")
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("default.dashboard"))
