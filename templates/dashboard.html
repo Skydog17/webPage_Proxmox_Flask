@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-3">
+    <h2>Benvenuto, {{ user.username }} ({{ user.role }})</h2>
+    <a href="{{ url_for('logout') }}" class="btn btn-secondary mb-3">Logout</a>
+
+    {% if user.role == 'user' %}
+    <!-- Form richiesta nuova VM -->
+    <div class="card mb-3">
+        <div class="card-header">Richiedi nuova VM</div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('request_vm') }}">
+                <div class="mb-3">
+                    <label for="vm_type" class="form-label">Tipo VM</label>
+                    <select name="vm_type" class="form-select">
+                        <option value="bronze">Bronze</option>
+                        <option value="silver">Silver</option>
+                        <option value="gold">Gold</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Invia richiesta</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabella richieste -->
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Tipo VM</th>
+                <th>Stato</th>
+                <th>Hostname</th>
+                <th>IP</th>
+                {% if user.role == 'admin' %}
+                <th>Azioni</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in requests %}
+            <tr>
+                <td>{{ r.id }}</td>
+                <td>{{ r.vm_type }}</td>
+                <td>{{ r.status }}</td>
+                <td>{% if r.vm_instance %}{{ r.vm_instance.hostname }}{% else %}-{% endif %}</td>
+                <td>{% if r.vm_instance %}{{ r.vm_instance.ip_address }}{% else %}-{% endif %}</td>
+                {% if user.role == 'admin' %}
+                <td>
+                    {% if r.status == 'pending' %}
+                        <a href="{{ url_for('approve', req_id=r.id) }}" class="btn btn-success btn-sm">Approva</a>
+                        <a href="#" class="btn btn-danger btn-sm">Rifiuta</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

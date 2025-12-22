@@ -32,6 +32,7 @@ class VMRequest(db.Model):
     vm_type = db.Column(db.Enum('bronze','silver','gold'), nullable=False)
     status = db.Column(db.Enum('pending','approved','created','rejected'), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    vm_instance = db.relationship('VMInstance', backref='request', uselist=False)
 
 class VMInstance(db.Model):
     __tablename__ = 'vm_instances'
@@ -66,28 +67,29 @@ def logout():
     logout_user()
     return redirect(url_for("login"))
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 @login_required
 def dashboard():
     if current_user.role == "admin":
-        requests = VMRequest.query.all()
+        requests_list = VMRequest.query.all()
     else:
-        requests = VMRequest.query.filter_by(user_id=current_user.id).all()
-    return render_template("dashboard.html", requests=requests, user=current_user)
+        requests_list = VMRequest.query.filter_by(user_id=current_user.id).all()
+    return render_template("dashboard.html", requests=requests_list, user=current_user)
 
-@app.route("/request_vm", methods=["GET","POST"])
+@app.route("/request_vm", methods=["POST"])
 @login_required
 def request_vm():
-    if request.method == "POST":
-        vm_type = request.form['vm_type']
-        new_req = VMRequest(user_id=current_user.id, vm_type=vm_type)
-        db.session.add(new_req)
-        db.session.commit()
-        flash("Richiesta inviata")
+    if current_user.role != "user":
+        flash("Solo gli utenti possono richiedere VM")
         return redirect(url_for("dashboard"))
-    return render_template("request_vm.html")
+    
+    vm_type = request.form['vm_type']
+    new_req = VMRequest(user_id=current_user.id, vm_type=vm_type)
+    db.session.add(new_req)
+    db.session.commit()
+    flash("Richiesta inviata")
+    return redirect(url_for("dashboard"))
 
-# ===== Approve route (solo admin) =====
 @app.route("/approve/<int:req_id>")
 @login_required
 def approve(req_id):
@@ -100,11 +102,12 @@ def approve(req_id):
         flash("Richiesta non valida")
         return redirect(url_for("dashboard"))
 
-    # ===== Connessione a Proxmox =====
+    # ===== Connessione a Proxmox (cluster nodo fisso) =====
     proxmox = ProxmoxAPI(
-        'IP_DEL_PROXMOX',    # sostituisci con IP reale
+        '192.168.56.15',    # nodo fisso del cluster
         user='root@pam',
         password='PASSWORD',
+        port=8006,
         verify_ssl=False
     )
 
@@ -116,20 +119,21 @@ def approve(req_id):
         "gold": "local:template-gold"
     }[req.vm_type]
 
+    target_node = "pve"  # nome nodo nel cluster, es. 'pve'
     # ===== Clonazione VM =====
-    proxmox.nodes('nome-nodo').qemu.clone.create(
+    proxmox.nodes(target_node).qemu.clone.create(
         newid=vm_id,
         name=vm_name,
         full=True,
-        target='nome-nodo',
+        target=target_node,
         base=template
     )
 
-    # Aggiornamento database
+    # Aggiornamento DB
     vm = VMInstance(
         request_id=req.id,
         hostname=vm_name,
-        ip_address="IP_DA_CONFIGURARE",  # se DHCP leggi tramite API
+        ip_address="IP_DA_CONFIGURARE",
         vm_user="ubuntu",
         vm_password="password123"
     )
@@ -141,5 +145,4 @@ def approve(req_id):
 
 # ===== Avvio app =====
 if __name__ == "__main__":
-    db.create_all()  # crea tabelle se non esistono
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="192.168.56.101", port=5000, debug=True)
