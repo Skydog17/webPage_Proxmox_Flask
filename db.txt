@@ -24,10 +24,15 @@ CREATE TABLE vm_instances (
     ip_address VARCHAR(50),
     vm_user VARCHAR(50),
     vm_password VARCHAR(50),
+    cores INT,
+    memory INT,     
+    disk INT,    
     FOREIGN KEY (request_id) REFERENCES vm_requests(id) ON DELETE CASCADE
 );
+
 
 
 INSERT INTO users (username, password, role) VALUES 
 ('admin', 'admin123', 'admin'),
 ('user1', 'user123', 'user');
+

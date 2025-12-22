@@ -42,6 +42,9 @@ class VMInstance(db.Model):
     ip_address = db.Column(db.String(50))
     vm_user = db.Column(db.String(50))
     vm_password = db.Column(db.String(50))
+    cores = db.Column(db.Integer)
+    memory = db.Column(db.Integer)
+    disk = db.Column(db.Integer)
 
 # ===== Login manager =====
 @login_manager.user_loader
@@ -102,31 +105,43 @@ def approve(req_id):
         flash("Richiesta non valida")
         return redirect(url_for("dashboard"))
 
-    # ===== Connessione a Proxmox (cluster nodo fisso) =====
+    # ===== Connessione a Proxmox con API Token =====
     proxmox = ProxmoxAPI(
-        '192.168.56.15',    # nodo fisso del cluster
-        user='root@pam',
-        password='PASSWORD',
+        '192.168.56.15',    # IP di un nodo del cluster
+        user='root@pam',    # solo utente e realm
+        token_name='mytokenid',  # il token creato in Proxmox
+        token_value='SECRET',    # il secret generato
         port=8006,
         verify_ssl=False
     )
 
-    vm_id = 100 + req.id
-    vm_name = f"vm-{req.id}"
-    template = {
-        "bronze": "local:template-bronze",
-        "silver": "local:template-silver",
-        "gold": "local:template-gold"
-    }[req.vm_type]
+    # Template e risorse in base al tipo di VM richiesto
+    lxc_templates = {
+        "bronze": {"template": "local:tzst/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 1, "memory": 2048, "disk": 10},
+        "silver": {"template": "local:tzst/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
+        "gold": {"template": "local:tzst/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
+    }
 
-    target_node = "pve"  # nome nodo nel cluster, es. 'pve'
-    # ===== Clonazione VM =====
-    proxmox.nodes(target_node).qemu.clone.create(
-        newid=vm_id,
-        name=vm_name,
-        full=True,
-        target=target_node,
-        base=template
+    tmpl = lxc_templates[req.vm_type]
+
+    # Genera un nuovo ID per il container
+    vm_id = 3000 + req.id  # esempio, assicurati sia libero
+    vm_name = f"ct-{req.id}"
+
+    # Nodo target nel cluster
+    target_node = "pve"
+
+    # ===== Creazione LXC =====
+    proxmox.nodes(target_node).lxc.create(
+        vmid=vm_id,
+        hostname=vm_name,
+        ostemplate=tmpl["template"],
+        cores=tmpl["cores"],
+        memory=tmpl["memory"],
+        swap=512,
+        rootfs=f"local:{tmpl['disk']}",  # usa lo storage "local" per il root disk
+        password="password123",           # password utente root del container
+        net0="name=eth0,bridge=vmbr0,ip=dhcp"
     )
 
     # Aggiornamento DB
@@ -134,15 +149,18 @@ def approve(req_id):
         request_id=req.id,
         hostname=vm_name,
         ip_address="IP_DA_CONFIGURARE",
-        vm_user="ubuntu",
+        vm_user="root",
         vm_password="password123"
     )
     db.session.add(vm)
     req.status = "created"
     db.session.commit()
-    flash(f"VM {vm_name} creata")
+    flash(f"Container {vm_name} creato")
     return redirect(url_for("dashboard"))
+
 
 # ===== Avvio app =====
 if __name__ == "__main__":
-    app.run(host="192.168.56.101", port=5000, debug=True)
+    with app.app_context():
+        db.create_all()  # crea tabelle se non esistono
+    app.run(host="0.0.0.0", port=5000, debug=True)
