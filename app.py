@@ -141,7 +141,7 @@ def approve(req_id):
         cores=tmpl["cores"],
         memory=tmpl["memory"],
         swap=512,
-        rootfs=f"local:{tmpl['disk']}",  # usa lo storage "local" per il root disk
+        rootfs=f"local-lvm:{tmpl['disk']}",  # usa lo storage "local" per il root disk
         password="Password&1",           # password utente root del container
         net0="name=eth0,bridge=vmbr0,ip=dhcp"
     )
