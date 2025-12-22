@@ -108,43 +108,50 @@ def approve(req_id):
 
     # ===== Connessione a Proxmox con API Token =====
     proxmox = ProxmoxAPI(
-        '192.168.56.15',    # IP di un nodo del cluster
-        user='root@pam',    # solo utente e realm
-        token_name='flaskToken',  # il token creato in Proxmox
-        token_value='35117d4a-2392-4d29-8275-d4de3bf1bb63',    # il secret generato
+        '192.168.56.15',    # IP nodo del cluster
+        user='root@pam',
+        token_name='flaskToken',
+        token_value='35117d4a-2392-4d29-8275-d4de3bf1bb63',
         port=8006,
         verify_ssl=False,
-	timeout=60
+        timeout=60
     )
 
-    # Template e risorse in base al tipo di VM richiesto
+    # Template e risorse per tipo VM
     lxc_templates = {
         "bronze": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 1, "memory": 2048, "disk": 10},
-        "silver": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
-        "gold": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
+        "silver": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
+        "gold":   {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
     }
 
     tmpl = lxc_templates[req.vm_type]
 
     # Genera un nuovo ID per il container
-    vm_id = 3020 + req.id  # esempio, assicurati sia libero
+    vm_id = 3020 + req.id
     vm_name = f"ct-{req.id}"
 
-    # Nodo target nel cluster
+    # Nodo target
     target_node = "px1"
 
+    # Genera IP statico per eth0 a partire da 192.168.56.102
+    ip_base = 102
+    ip_static = f"192.168.56.{ip_base + req.id}"
+
     # ===== Creazione LXC =====
-    task =  proxmox.nodes(target_node).lxc.create(
+    task = proxmox.nodes(target_node).lxc.create(
         vmid=vm_id,
         hostname=vm_name,
         ostemplate=tmpl["template"],
         cores=tmpl["cores"],
         memory=tmpl["memory"],
         swap=512,
-        rootfs=f"local-lvm:{tmpl['disk']}",  # usa lo storage "local" per il root disk
-        password="Password&1",           # password utente root del container
-        net0="name=eth0,bridge=vmbr0,ip=dhcp"
+        rootfs=f"vmstorage:{tmpl['disk']}",  # storage condiviso per root disk
+        password="Password&1",               # password root del container
+        net0=f"name=eth0,bridge=vmbr0,ip={ip_static}/24,gw=192.168.56.1",  # IP statico
+        net1="name=eth1,bridge=vmbr1,ip=dhcp"                               # IP via DHCP
     )
+
+    proxmox.nodes(target_node).lxc(vm_id).status.start.post()
 
     print(task)
 
@@ -152,7 +159,7 @@ def approve(req_id):
     vm = VMInstance(
         request_id=req.id,
         hostname=vm_name,
-        ip_address="IP",
+        ip_address=ip_static,
         vm_user="root",
         vm_password="Password&1"
     )
@@ -160,8 +167,7 @@ def approve(req_id):
     req.status = "created"
     db.session.commit()
     flash(f"Container {vm_name} creato")
-    return redirect(url_for("dashboard"))
-
+    return render_template("dashboard.html", request=req, user=current_user)
 
 # ===== Avvio app =====
 if __name__ == "__main__":
