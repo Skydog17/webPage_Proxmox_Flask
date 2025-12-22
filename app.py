@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Flask
 from flask_login import LoginManager
+from flask_migrate import Migrate
 
 from models.connection import db
 from models.model import User
@@ -13,6 +14,9 @@ app = Flask(__name__)
 app.secret_key = "secretkey123"
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://flaskuser:flaskpass@localhost/340_progetto"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db.init_app(app)
+migrate = Migrate(app, db)
 
 # ===== Blueprint
 app.register_blueprint(bp_auth)
@@ -29,6 +33,4 @@ def load_user(user_id):
 
 # ===== Avvio app
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()  # crea tabelle se non esistono
     app.run(host="192.168.56.101", port=5000, debug=True)
