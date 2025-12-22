@@ -1,201 +1,145 @@
-(''')from flask import Flask
-from flask import url_for, request
-
-from routes.default import app as bp_default
-
-app = Flask(__name__)
-app.register_blueprint(bp_default)
-
-#app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///labo1.db"
-
-if __name__ == "__main__":
-    app.run(debug=True)
-(''')
-
-from flask import Flask, render_template, request, redirect, session
+# app.py
+from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
-from functools import wraps
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from proxmoxer import ProxmoxAPI
 from datetime import datetime
 
-# ----------------------
-# APP CONFIG
-# ----------------------
+# ===== Flask e DB =====
 app = Flask(__name__)
-app.secret_key = "super-secret-key"
-
-# Connessione MySQL
+app.secret_key = "secretkey123"
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://flaskuser:flaskpass@localhost/340_progetto"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 db = SQLAlchemy(app)
 
-# ----------------------
-# MODELLI DATABASE
-# ----------------------
+# ===== Login =====
+login_manager = LoginManager()
+login_manager.login_view = "login"
+login_manager.init_app(app)
 
-class User(db.Model):
-    __tablename__ = "users"
+# ===== Modelli =====
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
     role = db.Column(db.Enum('user','admin'), nullable=False)
 
 class VMRequest(db.Model):
-    __tablename__ = "vm_requests"
+    __tablename__ = 'vm_requests'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     vm_type = db.Column(db.Enum('bronze','silver','gold'), nullable=False)
     status = db.Column(db.Enum('pending','approved','created','rejected'), default='pending')
-    created_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class VMInstance(db.Model):
-    __tablename__ = "vm_instances"
+    __tablename__ = 'vm_instances'
     id = db.Column(db.Integer, primary_key=True)
-    request_id = db.Column(db.Integer, db.ForeignKey('vm_requests.id'), nullable=False)
+    request_id = db.Column(db.Integer, db.ForeignKey('vm_requests.id', ondelete="CASCADE"), nullable=False)
     hostname = db.Column(db.String(100))
     ip_address = db.Column(db.String(50))
     vm_user = db.Column(db.String(50))
     vm_password = db.Column(db.String(50))
 
-# ----------------------
-# DECORATOR LOGIN
-# ----------------------
-def login_required(role=None):
-    def decorator(f):
-        @wraps(f)
-        def wrapped(*args, **kwargs):
-            if "user_id" not in session:
-                return redirect("/")
-            if role and session.get("role") != role:
-                return "Accesso negato", 403
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
+# ===== Login manager =====
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
-# ----------------------
-# ROUTES LOGIN
-# ----------------------
-@app.route("/")
-def login_page():
+# ===== Rotte =====
+@app.route("/login", methods=["GET","POST"])
+def login():
+    if request.method == "POST":
+        username = request.form['username']
+        password = request.form['password']
+        user = User.query.filter_by(username=username, password=password).first()
+        if user:
+            login_user(user)
+            return redirect(url_for("dashboard"))
+        flash("Credenziali errate")
     return render_template("login.html")
 
-@app.route("/login", methods=["POST"])
-def login():
-    username = request.form["username"]
-    password = request.form["password"]
-
-    user = User.query.filter_by(username=username, password=password).first()
-    if not user:
-        return render_template("login.html", error="Credenziali errate")
-
-    session["user_id"] = user.id
-    session["role"] = user.role
-
-    if user.role == "admin":
-        return redirect("/admin")
-    return redirect("/dashboard")
-
 @app.route("/logout")
+@login_required
 def logout():
-    session.clear()
-    return redirect("/")
+    logout_user()
+    return redirect(url_for("login"))
 
-# ----------------------
-# DASHBOARD UTENTE
-# ----------------------
-@app.route("/dashboard")
-@login_required(role="user")
+@app.route("/")
+@login_required
 def dashboard():
-    requests_vm = VMRequest.query.filter_by(user_id=session["user_id"]).all()
-    return render_template("user_dashboard.html", requests=requests_vm)
+    if current_user.role == "admin":
+        requests = VMRequest.query.all()
+    else:
+        requests = VMRequest.query.filter_by(user_id=current_user.id).all()
+    return render_template("dashboard.html", requests=requests, user=current_user)
 
-@app.route("/request-vm", methods=["POST"])
-@login_required(role="user")
+@app.route("/request_vm", methods=["GET","POST"])
+@login_required
 def request_vm():
-    vm_type = request.form["vm_type"]
+    if request.method == "POST":
+        vm_type = request.form['vm_type']
+        new_req = VMRequest(user_id=current_user.id, vm_type=vm_type)
+        db.session.add(new_req)
+        db.session.commit()
+        flash("Richiesta inviata")
+        return redirect(url_for("dashboard"))
+    return render_template("request_vm.html")
 
-    new_request = VMRequest(
-        user_id=session["user_id"],
-        vm_type=vm_type,
-        status="pending",
-        created_at=datetime.now()
-    )
-    db.session.add(new_request)
-    db.session.commit()
-
-    return redirect("/dashboard")
-
-# ----------------------
-# DASHBOARD ADMIN
-# ----------------------
-@app.route("/admin")
-@login_required(role="admin")
-def admin_dashboard():
-    rows = (
-        db.session.query(VMRequest, User.username)
-        .join(User, VMRequest.user_id == User.id)
-        .filter(VMRequest.status == "pending")
-        .all()
-    )
-
-    requests_data = []
-    for r, username in rows:
-        requests_data.append({
-            "id": r.id,
-            "vm_type": r.vm_type,
-            "username": username
-        })
-
-    return render_template("admin_dashboard.html", requests=requests_data)
-
+# ===== Approve route (solo admin) =====
 @app.route("/approve/<int:req_id>")
-@login_required(role="admin")
+@login_required
 def approve(req_id):
+    if current_user.role != "admin":
+        flash("Non hai i permessi")
+        return redirect(url_for("dashboard"))
+
     req = VMRequest.query.get(req_id)
-    if not req:
-        return "Richiesta non trovata", 404
+    if not req or req.status != "pending":
+        flash("Richiesta non valida")
+        return redirect(url_for("dashboard"))
 
-    req.status = "created"
+    # ===== Connessione a Proxmox =====
+    proxmox = ProxmoxAPI(
+        'IP_DEL_PROXMOX',    # sostituisci con IP reale
+        user='root@pam',
+        password='PASSWORD',
+        verify_ssl=False
+    )
 
-    # ----------------------------
-    # SIMULAZIONE CREAZIONE VM
-    # ----------------------------
+    vm_id = 100 + req.id
+    vm_name = f"vm-{req.id}"
+    template = {
+        "bronze": "local:template-bronze",
+        "silver": "local:template-silver",
+        "gold": "local:template-gold"
+    }[req.vm_type]
+
+    # ===== Clonazione VM =====
+    proxmox.nodes('nome-nodo').qemu.clone.create(
+        newid=vm_id,
+        name=vm_name,
+        full=True,
+        target='nome-nodo',
+        base=template
+    )
+
+    # Aggiornamento database
     vm = VMInstance(
         request_id=req.id,
-        hostname=f"vm-{req.id}",
-        ip_address="192.168.1." + str(100 + req.id),
+        hostname=vm_name,
+        ip_address="IP_DA_CONFIGURARE",  # se DHCP leggi tramite API
         vm_user="ubuntu",
         vm_password="password123"
     )
     db.session.add(vm)
+    req.status = "created"
     db.session.commit()
+    flash(f"VM {vm_name} creata")
+    return redirect(url_for("dashboard"))
 
-    db.session.commit()
-    return redirect("/admin")
-
-@app.route("/reject/<int:req_id>")
-@login_required(role="admin")
-def reject(req_id):
-    req = VMRequest.query.get(req_id)
-    if not req:
-        return "Richiesta non trovata", 404
-
-    req.status = "rejected"
-    db.session.commit()
-    return redirect("/admin")
-
-@app.route("/vm/<int:req_id>")
-@login_required()
-def vm_details(req_id):
-    vm = VMInstance.query.filter_by(request_id=req_id).first()
-    if not vm:
-        return "VM non trovata", 404
-    return render_template("vm_details.html", vm=vm)
-
-# ----------------------
-# MAIN
-# ----------------------
+# ===== Avvio app =====
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()  # crea le tabelle se non esistono
+    db.create_all()  # crea tabelle se non esistono
     app.run(host="0.0.0.0", port=5000, debug=True)
