@@ -1,4 +1,5 @@
 # app.py
+# -*- coding: utf-8 -*-
 from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
@@ -109,30 +110,31 @@ def approve(req_id):
     proxmox = ProxmoxAPI(
         '192.168.56.15',    # IP di un nodo del cluster
         user='root@pam',    # solo utente e realm
-        token_name='mytokenid',  # il token creato in Proxmox
-        token_value='SECRET',    # il secret generato
+        token_name='flaskToken',  # il token creato in Proxmox
+        token_value='35117d4a-2392-4d29-8275-d4de3bf1bb63',    # il secret generato
         port=8006,
-        verify_ssl=False
+        verify_ssl=False,
+	timeout=60
     )
 
     # Template e risorse in base al tipo di VM richiesto
     lxc_templates = {
-        "bronze": {"template": "local:tzst/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 1, "memory": 2048, "disk": 10},
-        "silver": {"template": "local:tzst/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
-        "gold": {"template": "local:tzst/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
+        "bronze": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 1, "memory": 2048, "disk": 10},
+        "silver": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
+        "gold": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
     }
 
     tmpl = lxc_templates[req.vm_type]
 
     # Genera un nuovo ID per il container
-    vm_id = 3000 + req.id  # esempio, assicurati sia libero
+    vm_id = 3020 + req.id  # esempio, assicurati sia libero
     vm_name = f"ct-{req.id}"
 
     # Nodo target nel cluster
-    target_node = "pve"
+    target_node = "px1"
 
     # ===== Creazione LXC =====
-    proxmox.nodes(target_node).lxc.create(
+    task =  proxmox.nodes(target_node).lxc.create(
         vmid=vm_id,
         hostname=vm_name,
         ostemplate=tmpl["template"],
@@ -140,17 +142,19 @@ def approve(req_id):
         memory=tmpl["memory"],
         swap=512,
         rootfs=f"local:{tmpl['disk']}",  # usa lo storage "local" per il root disk
-        password="password123",           # password utente root del container
+        password="Password&1",           # password utente root del container
         net0="name=eth0,bridge=vmbr0,ip=dhcp"
     )
+
+    print(task)
 
     # Aggiornamento DB
     vm = VMInstance(
         request_id=req.id,
         hostname=vm_name,
-        ip_address="IP_DA_CONFIGURARE",
+        ip_address="IP",
         vm_user="root",
-        vm_password="password123"
+        vm_password="Password&1"
     )
     db.session.add(vm)
     req.status = "created"
@@ -163,4 +167,4 @@ def approve(req_id):
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()  # crea tabelle se non esistono
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="192.168.56.101", port=5000, debug=True)
