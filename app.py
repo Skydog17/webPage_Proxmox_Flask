@@ -8,6 +8,7 @@ from models.model import User
 
 from routes.auth import app as bp_auth
 from routes.default import app as bp_default
+from routes.vm_request import app as bp_vmReq
 
 # ===== Flask e DB
 app = Flask(__name__)
@@ -21,6 +22,7 @@ migrate = Migrate(app, db)
 # ===== Blueprint
 app.register_blueprint(bp_auth)
 app.register_blueprint(bp_default)
+app.register_blueprint(bp_vmReq)
 
 # ===== Usato nel progetto del Laboratorio 1
 login_manager = LoginManager()

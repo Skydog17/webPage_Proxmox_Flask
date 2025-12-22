@@ -33,8 +33,8 @@ def approve(req_id):
     # Template e risorse in base al tipo di VM richiesto
     lxc_templates = {
         "bronze": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 1, "memory": 2048, "disk": 10},
-        "silver": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
-        "gold": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-1_amd64.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
+        "silver": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
+        "gold": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
     }
 
     tmpl = lxc_templates[req.vm_type]
@@ -56,8 +56,11 @@ def approve(req_id):
         swap=512,
         rootfs=f"local-lvm:{tmpl['disk']}",  # usa lo storage "local" per il root disk
         password="Password&1",           # password utente root del container
-        net0="name=eth0,bridge=vmbr0,ip=dhcp"
+        net0=f"name=eth0,bridge=vmbr0,ip=192.168.56.{102 + req.id}/24,gw=192.168.56.1",
+        net1="name=eth1,bridge=vmbr1,ip=dhcp"
     )
+
+    proxmox.nodes(target_node).lxc(vm_id).status.start.post()
 
     print(task)
 
@@ -65,7 +68,7 @@ def approve(req_id):
     vm = VMInstance(
         request_id=req.id,
         hostname=vm_name,
-        ip_address="IP",
+        ip_address="192.168.56." + str(102 + req.id),
         vm_user="root",
         vm_password="Password&1"
     )
