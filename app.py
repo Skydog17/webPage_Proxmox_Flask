@@ -28,7 +28,7 @@ app.register_blueprint(bp_auth)
 app.register_blueprint(bp_default)
 app.register_blueprint(bp_vmReq)
 
-# ===== Usato nel progetto del Laboratorio 1
+# ===== LoginManager
 login_manager = LoginManager()
 login_manager.login_view = "auth.login"
 login_manager.init_app(app)

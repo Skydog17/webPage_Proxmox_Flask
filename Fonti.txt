@@ -1,0 +1,12 @@
+1. [Proxmox API Documentation](https://pve.proxmox.com/pve-docs/api-viewer/index.html#/nodes/{node}/lxc) 
+Questa documentazione era piena di informazioni, usata per comprendere a grandi linee cosa fare e poi cercare specificamente cosa avessi bisogno
+
+2. [LoginManager Documentation] (https://flask-login.readthedocs.io/en/latest/)
+Avevo già il codice pronto dal progetto del laboratorio 1
+
+3. [StackOverflow - Creare un container via API](https://stackoverflow.com/questions/51133991/proxmoxer-how-to-create-lxc-container-specifying-disk-size)
+
+4. [Forum Proxmox - Avviare un container](https://forum.proxmox.com/threads/hi-i-know-proxmoxer-is-not-developed-by-the-proxmox-team-but.146170)
+
+5. [ChatGPT - Creazione Frontend](https://chatgpt.com)
+Chiesto di farmi lo stile e pagine base per il frontend, che ho poi modificato per integrare il backend e fatto piccole migliorie
