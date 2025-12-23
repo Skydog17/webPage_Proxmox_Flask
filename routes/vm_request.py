@@ -1,6 +1,7 @@
 from flask import Blueprint,redirect,url_for,flash
 from flask_login import login_required, current_user
 from proxmoxer import ProxmoxAPI
+from time import sleep
 
 from models.model import VMRequest, VMInstance
 from models.connection import db
@@ -60,7 +61,8 @@ def approve(req_id):
         net1="name=eth1,bridge=vmbr1,ip=dhcp"
     )
 
-    # Aggiornamento DB
+    # Aggiornamento DB e starto la macchina quando il container e startato
+
     vm = VMInstance(
         request_id=req.id,
         hostname=vm_name,
@@ -68,8 +70,9 @@ def approve(req_id):
         vm_user="root",
         vm_password="Password&1"
     )
+
     db.session.add(vm)
-    req.status = "created"
+    req.status = "created"	
     db.session.commit()
     proxmox.nodes(target_node).lxc(vm_id).status.start.post()
     return redirect(url_for("default.dashboard"))
