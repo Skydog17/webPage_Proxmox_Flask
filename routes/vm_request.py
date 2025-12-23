@@ -72,8 +72,11 @@ def approve(req_id):
         hostname=vm_name,
         ip_address="192.168.56." + str(102 + req.id),
         vm_user=os.getenv('VM_USER'),
-        vm_password=os.getenv('VM_PASS')
-    )
+        vm_password=os.getenv('VM_PASS'),
+        cores = tmpl["cores"],
+        memory = tmpl["memory"],
+        disk = tmpl["disk"]
+   )
 
     db.session.add(vm)
     req.status = "created"	
