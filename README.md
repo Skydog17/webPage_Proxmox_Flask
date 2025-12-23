@@ -5,8 +5,6 @@
 ## Descrizione
 
 Portale web per la creazione e gestione di container su Proxmox. Permette a utenti non amministrativi di richiedere macchine virtuali, mentre gli admin possono approvare o rifiutare le richieste. Il portale interagisce con l’hypervisor Proxmox tramite API.
-Se si vuole vedere il repo solo dell'applicativo web (senza il link alle VM e altre info) andare qui:
-https://github.com/Skydog17/webPage_Proxmox_Flask
 
 
 
