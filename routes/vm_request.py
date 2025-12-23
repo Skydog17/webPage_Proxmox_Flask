@@ -32,9 +32,9 @@ def approve(req_id):
 
     # Template e risorse in base al tipo di VM richiesto
     lxc_templates = {
-        "bronze": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 1, "memory": 2048, "disk": 10},
-        "silver": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
-        "gold": {"template": "local:vztmpl/ubuntu-24.04-standard_24.04-2_amd64.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
+        "bronze": {"template": "local:vztmpl/vzdump-lxc-3003-2025_12_23-09_19_08.tar.zst", "cores": 1, "memory": 2048, "disk": 10},
+        "silver": {"template": "local:vztmpl/vzdump-lxc-3003-2025_12_23-09_19_08.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
+        "gold": {"template": "local:vztmpl/vzdump-lxc-3003-2025_12_23-09_19_08.tar.zst", "cores": 4, "memory": 8192, "disk": 40}
     }
 
     tmpl = lxc_templates[req.vm_type]
@@ -60,10 +60,6 @@ def approve(req_id):
         net1="name=eth1,bridge=vmbr1,ip=dhcp"
     )
 
-    proxmox.nodes(target_node).lxc(vm_id).status.start.post()
-
-    print(task)
-
     # Aggiornamento DB
     vm = VMInstance(
         request_id=req.id,
@@ -75,7 +71,7 @@ def approve(req_id):
     db.session.add(vm)
     req.status = "created"
     db.session.commit()
-    flash(f"Container {vm_name} creato")
+    proxmox.nodes(target_node).lxc(vm_id).status.start.post()
     return redirect(url_for("default.dashboard"))
 
 @app.route("/reject/<int:req_id>")
