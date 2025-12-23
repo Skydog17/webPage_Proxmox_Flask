@@ -1,16 +1,21 @@
 from flask import Blueprint,redirect,url_for,flash
 from flask_login import login_required, current_user
 from proxmoxer import ProxmoxAPI
-from time import sleep
+
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 from models.model import VMRequest, VMInstance
 from models.connection import db
 
 app = Blueprint('vmReq', __name__)
 
+# ===== Se admin approva la VM
 @app.route("/approve/<int:req_id>")
 @login_required
 def approve(req_id):
+    # ===== Verifico il tipo di user
     if current_user.role != "admin":
         flash("Non hai i permessi")
         return redirect(url_for("default.dashboard"))
@@ -20,18 +25,18 @@ def approve(req_id):
         flash("Richiesta non valida")
         return redirect(url_for("default.dashboard"))
 
-    # ===== Connessione a Proxmox con API Token =====
+    # ===== Connessione a Proxmox con API Token 
     proxmox = ProxmoxAPI(
-        '192.168.56.15',    # IP di un nodo del cluster
-        user='root@pam',    # solo utente e realm
-        token_name='flaskToken',  # il token creato in Proxmox
-        token_value='35117d4a-2392-4d29-8275-d4de3bf1bb63',    # il secret generato
+        '192.168.56.15',    # IP di px1
+        user='root@pam',    # utente@realm
+        token_name=os.getenv('TOKEN_NAME'),  # Nome del token creato su proxmox
+        token_value= os.getenv('SECRET_TOKEN'),    # Il secret generato
         port=8006,
         verify_ssl=False,
 	timeout=60
     )
 
-    # Template e risorse in base al tipo di VM richiesto
+    # ===== Template (uguale per tutti) e risorse in base al tipo di Container richiesto
     lxc_templates = {
         "bronze": {"template": "local:vztmpl/vzdump-lxc-3003-2025_12_23-09_19_08.tar.zst", "cores": 1, "memory": 2048, "disk": 10},
         "silver": {"template": "local:vztmpl/vzdump-lxc-3003-2025_12_23-09_19_08.tar.zst", "cores": 2, "memory": 4096, "disk": 20},
@@ -40,14 +45,14 @@ def approve(req_id):
 
     tmpl = lxc_templates[req.vm_type]
 
-    # Genera un nuovo ID per il container
-    vm_id = 3020 + req.id  # esempio, assicurati sia libero
+    # ===== Genera un nuovo ID per il container
+    vm_id = 3020 + req.id
     vm_name = f"ct-{req.id}"
 
-    # Nodo target nel cluster
+    # ===== Nodo target nel cluster
     target_node = "px1"
 
-    # ===== Creazione LXC =====
+    # ===== Creazione LXC 
     task =  proxmox.nodes(target_node).lxc.create(
         vmid=vm_id,
         hostname=vm_name,
@@ -55,20 +60,19 @@ def approve(req_id):
         cores=tmpl["cores"],
         memory=tmpl["memory"],
         swap=512,
-        rootfs=f"local-lvm:{tmpl['disk']}",  # usa lo storage "local" per il root disk
-        password="Password&1",           # password utente root del container
+        rootfs=f"local-lvm:{tmpl['disk']}",     # usa lo storage "local" per il root disk
+        password=os.getenv('VM_PASS'),                  # password utente root del container
         net0=f"name=eth0,bridge=vmbr0,ip=192.168.56.{102 + req.id}/24,gw=192.168.56.1",
         net1="name=eth1,bridge=vmbr1,ip=dhcp"
     )
 
-    # Aggiornamento DB e starto la macchina quando il container e startato
-
+    # ===== Aggiornamento DB e starto la macchina quando il container e startato
     vm = VMInstance(
         request_id=req.id,
         hostname=vm_name,
         ip_address="192.168.56." + str(102 + req.id),
-        vm_user="root",
-        vm_password="Password&1"
+        vm_user=os.getenv('VM_USER'),
+        vm_password=os.getenv('VM_PASS')
     )
 
     db.session.add(vm)
@@ -77,6 +81,7 @@ def approve(req_id):
     proxmox.nodes(target_node).lxc(vm_id).status.start.post()
     return redirect(url_for("default.dashboard"))
 
+# ===== Se admin rifiuta
 @app.route("/reject/<int:req_id>")
 @login_required
 def reject(req_id):
@@ -89,7 +94,7 @@ def reject(req_id):
         flash("Richiesta non valida")
         return redirect(url_for("default.dashboard"))
 
-    # Aggiorna lo stato della richiesta
+    # ===== Aggiorna lo stato della richiesta
     req.status = "rejected"
     db.session.commit()
 

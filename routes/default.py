@@ -9,19 +9,23 @@ app = Blueprint('default', __name__)
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def dashboard():
+    #se admin prendo tutte le VM
     if current_user.role == "admin":
         requests_list = VMRequest.query.all()
+    #Se user normale, prendo solo le sue VM    
     else:
-        requests_list = VMRequest.query.filter_by(user_id=current_user.id).all()
+        requests_list = VMRequest.query.filter_by(user_id=current_user.id).all()    
     return render_template("dashboard.html", requests=requests_list, user=current_user)
 
 @app.route("/request_vm", methods=["POST"])
 @login_required
 def request_vm():
+    #Verifica se l'user corrente è tipo user
     if current_user.role != "user":
         flash("Solo gli utenti possono richiedere VM")
         return redirect(url_for("default.dashboard"))
     
+    #Salvo la richiesta sul DB, così che l'admin possa vederla
     vm_type = request.form['vm_type']
     new_req = VMRequest(user_id=current_user.id, vm_type=vm_type)
     db.session.add(new_req)

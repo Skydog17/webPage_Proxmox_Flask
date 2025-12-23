@@ -10,10 +10,14 @@ from routes.auth import app as bp_auth
 from routes.default import app as bp_default
 from routes.vm_request import app as bp_vmReq
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 # ===== Flask e DB
 app = Flask(__name__)
-app.secret_key = "secretkey123"
-app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://flaskuser:flaskpass@localhost/340_progetto"
+app.secret_key = os.getenv('SECRET_KEY')
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv('SQLALCHEMY_DATABASE_URI')
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
